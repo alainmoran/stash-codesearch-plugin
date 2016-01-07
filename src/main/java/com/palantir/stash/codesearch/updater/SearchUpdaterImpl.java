@@ -578,35 +578,6 @@ public class SearchUpdaterImpl implements SearchUpdater, LifecycleAware {
         }
     }
 
-    @Override
-    public boolean reindexRepository(final String projectKey, final String repositorySlug) {
-        GlobalSettings globalSettings = settingsManager.getGlobalSettings();
-        if (!globalSettings.getIndexingEnabled()) {
-            log.warn("Not performing a repository reindex triggered since indexing is disabled");
-            return false;
-        }
-        log.warn("Manual reindex triggered for {}^{} (expensive operation, use sparingly)", projectKey, repositorySlug);
-
-        //todo: decide if it's worthwhile to disable refresh for faster bulk indexing or not.
-
-        deleteRepository(projectKey, repositorySlug);
-
-        // Search for repository
-        Repository repository = repositoryServiceManager.getRepositoryService().getBySlug(
-            projectKey, repositorySlug);
-        if (repository == null) {
-            log.warn("Repository {}^{} not found for manual reindexing", projectKey, repositorySlug);
-            return false;
-        }
-
-        // Submit and wait for each job
-        List<Future<Void>> futures = updateRepository(repository);
-        waitForFutures(futures);
-
-        log.warn("Manual reindex of {}^{} completed", projectKey, repositorySlug);
-        return true;
-    }
-
     private List<Future<Void>> updateRepository(Repository repository) {
         List<Future<Void>> futures = new ArrayList<Future<Void>>();
         for (Branch branch : repositoryServiceManager.getBranchMap(repository).values()) {
@@ -652,6 +623,36 @@ public class SearchUpdaterImpl implements SearchUpdater, LifecycleAware {
     private void optimiseIndicies() {
         es.getClient().admin().indices().prepareOptimize(ES_UPDATEALIAS).get();
         redirectAndDeleteAliasedIndex(ES_SEARCHALIAS, ES_UPDATEALIAS);
+    }
+
+
+    @Override
+    public boolean reindexRepository(final String projectKey, final String repositorySlug) {
+        GlobalSettings globalSettings = settingsManager.getGlobalSettings();
+        if (!globalSettings.getIndexingEnabled()) {
+            log.warn("Not performing a repository reindex triggered since indexing is disabled");
+            return false;
+        }
+        log.warn("Manual reindex triggered for {}^{} (expensive operation, use sparingly)", projectKey, repositorySlug);
+
+        //todo: decide if it's worthwhile to disable refresh for faster bulk indexing or not.
+
+        deleteRepository(projectKey, repositorySlug);
+
+        // Search for repository
+        Repository repository = repositoryServiceManager.getRepositoryService().getBySlug(
+            projectKey, repositorySlug);
+        if (repository == null) {
+            log.warn("Repository {}^{} not found for manual reindexing", projectKey, repositorySlug);
+            return false;
+        }
+
+        // Submit and wait for each job
+        List<Future<Void>> futures = updateRepository(repository);
+        waitForFutures(futures);
+
+        log.warn("Manual reindex of {}^{} completed", projectKey, repositorySlug);
+        return true;
     }
 
     @Override
