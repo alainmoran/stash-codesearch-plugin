@@ -4,13 +4,13 @@
 
 package com.palantir.stash.codesearch.search;
 
-import static org.elasticsearch.index.query.FilterBuilders.boolFilter;
-import static org.elasticsearch.index.query.FilterBuilders.matchAllFilter;
-import static org.elasticsearch.index.query.FilterBuilders.orFilter;
-import static org.elasticsearch.index.query.FilterBuilders.prefixFilter;
-import static org.elasticsearch.index.query.FilterBuilders.rangeFilter;
-import static org.elasticsearch.index.query.FilterBuilders.termFilter;
-import static org.elasticsearch.index.query.FilterBuilders.typeFilter;
+import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
+import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
+import static org.elasticsearch.index.query.QueryBuilders.orQuery;
+import static org.elasticsearch.index.query.QueryBuilders.prefixQuery;
+import static org.elasticsearch.index.query.QueryBuilders.rangeQuery;
+import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+import static org.elasticsearch.index.query.QueryBuilders.typeQuery;
 
 import java.security.MessageDigest;
 import java.util.Arrays;
@@ -18,9 +18,9 @@ import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.commons.codec.binary.Base64;
-import org.elasticsearch.index.query.BoolFilterBuilder;
-import org.elasticsearch.index.query.FilterBuilder;
-import org.elasticsearch.index.query.RangeFilterBuilder;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
 
@@ -46,62 +46,36 @@ public class SearchFilterUtils {
         };
     }
 
-    public FilterBuilder exactRefFilter(String ref) {
-        return termFilter("refs.untouched", ref)
-            .cache(true)
-            .cacheKey("CACHE^EXACTREFFILTER^" + ref);
+    public QueryBuilder exactRefQuery(String ref) {
+        return termQuery("refs.untouched", ref);
     }
 
-    public FilterBuilder projectRepositoryFilter(String project, String repository) {
-        return boolFilter()
-            .must(termFilter("project", project))
-            .must(termFilter("repository", repository))
-            .cache(true)
-            .cacheKey("CACHE^PROJECTREPOFILTER^" + project + "^" + repository);
+    public QueryBuilder projectRepositoryQuery(String project, String repository) {
+        return boolQuery()
+            .filter(termQuery("project", project))
+            .filter(termQuery("repository", repository));
     }
 
-    public FilterBuilder aclFilter(Map<String, Repository> repoMap) {
+    public QueryBuilder aclQuery(Map<String, Repository> repoMap) {
         if (repoMap.isEmpty()) {
-            return boolFilter().mustNot(matchAllFilter());
-        }
-
-        // Compute cryptographic hash of repository set to use for cache key
-        String[] projectRepoPairs = repoMap.keySet().toArray(new String[repoMap.size()]);
-        Arrays.sort(projectRepoPairs);
-        String filterHash;
-        try {
-            MessageDigest hasher = MessageDigest.getInstance("SHA-256");
-            for (String pair : projectRepoPairs) {
-                hasher.update(pair.getBytes());
-                hasher.update((byte) 0);
-            }
-            filterHash = new String(Base64.encodeBase64(hasher.digest()));
-        } catch (Exception e) {
-            filterHash = null;
-            log.error("Caught exception generating ACL hash -- caching is disabled.", e);
+            return boolQuery().mustNot(matchAllQuery());
         }
 
         // Create disjunction of individual repo ACL filters
-        BoolFilterBuilder filter = boolFilter();
-        if (filterHash != null) {
-            filter.cache(true)
-                .cacheKey("CACHE^ACLORFILTER^" + filterHash);
-        } else {
-            filter.cache(false);
-        }
+        BoolQueryBuilder query = boolQuery();
         for (Repository repo : repoMap.values()) {
-            filter.should(projectRepositoryFilter(repo.getProject().getKey(), repo.getSlug()));
+            query.filter(projectRepositoryQuery(repo.getProject().getKey(), repo.getSlug()));
         }
-        return filter;
+        return query;
     }
 
-    public FilterBuilder refFilter(String[] refs) {
-        return refFilter(toIterable(refs));
+    public QueryBuilder refQuery(String[] refs) {
+        return refQuery(toIterable(refs));
     }
 
-    public FilterBuilder refFilter(Iterable<String> refs) {
+    public QueryBuilder refQuery(Iterable<String> refs) {
         boolean filterAdded = false;
-        BoolFilterBuilder filter = boolFilter();
+        BoolQueryBuilder query = boolQuery();
         for (String ref : refs) {
             String[] toks = ref.split("[/\\s]+");
             // Make sure there's at least one non-empty token
@@ -116,34 +90,32 @@ public class SearchFilterUtils {
                 continue;
             }
 
-            BoolFilterBuilder refFilter = boolFilter()
-                .cache(true)
-                .cacheKey("CACHE^REFANDFILTER^" + ref);
+            BoolQueryBuilder refQuery = boolQuery();
             for (String tok : toks) {
                 if (!tok.isEmpty()) {
-                    refFilter.must(termFilter("refs", tok.toLowerCase()));
+                    refQuery.filter(termQuery("refs", tok.toLowerCase()));
                 }
             }
-            filter.should(refFilter);
+            query.should(refQuery);
             filterAdded = true;
         }
         return filterAdded ? filter : matchAllFilter();
     }
 
-    public FilterBuilder personalFilter() {
-        BoolFilterBuilder filter = boolFilter();
+    public QueryBuilder personalFilter() {
+        BoolQueryBuilder filter = boolFilter();
         filter.mustNot(prefixFilter("project", "~")
                 .cache(true));
         return filter;
     }
 
-    public FilterBuilder projectFilter(String[] projects) {
+    public QueryBuilder projectFilter(String[] projects) {
         return projectFilter(toIterable(projects));
     }
 
-    public FilterBuilder projectFilter(Iterable<String> projects) {
+    public QueryBuilder projectFilter(Iterable<String> projects) {
         boolean filterAdded = false;
-        BoolFilterBuilder filter = boolFilter();
+        BoolQueryBuilder filter = boolFilter();
         for (String project : projects) {
             project = project.trim();
             if (project.isEmpty()) {
@@ -157,13 +129,13 @@ public class SearchFilterUtils {
         return filterAdded ? filter : matchAllFilter();
     }
 
-    public FilterBuilder repositoryFilter(String[] repositories) {
+    public QueryBuilder repositoryFilter(String[] repositories) {
         return repositoryFilter(toIterable(repositories));
     }
 
-    public FilterBuilder repositoryFilter(Iterable<String> repositories) {
+    public QueryBuilder repositoryFilter(Iterable<String> repositories) {
         boolean filterAdded = false;
-        BoolFilterBuilder filter = boolFilter();
+        BoolQueryBuilder filter = boolFilter();
         for (String repository : repositories) {
             repository = repository.trim();
             if (repository.isEmpty()) {
@@ -177,13 +149,13 @@ public class SearchFilterUtils {
         return filterAdded ? filter : matchAllFilter();
     }
 
-    public FilterBuilder extensionFilter(String[] extensions) {
+    public QueryBuilder extensionFilter(String[] extensions) {
         return extensionFilter(toIterable(extensions));
     }
 
-    public FilterBuilder extensionFilter(Iterable<String> extensions) {
+    public QueryBuilder extensionFilter(Iterable<String> extensions) {
         boolean filterAdded = false;
-        BoolFilterBuilder filter = boolFilter();
+        BoolQueryBuilder filter = boolFilter();
         for (String extension : extensions) {
             extension = extension.trim();
             if (extension.isEmpty()) {
@@ -197,13 +169,13 @@ public class SearchFilterUtils {
         return filterAdded ? filter.should(typeFilter("commit")) : matchAllFilter();
     }
 
-    public FilterBuilder authorFilter(String[] authors) {
+    public QueryBuilder authorFilter(String[] authors) {
         return authorFilter(toIterable(authors));
     }
 
-    public FilterBuilder authorFilter(Iterable<String> authors) {
+    public QueryBuilder authorFilter(Iterable<String> authors) {
         boolean filterAdded = false;
-        BoolFilterBuilder filter = boolFilter();
+        BoolQueryBuilder filter = boolFilter();
         for (String author : authors) {
             String[] toks = author.split("\\W+");
             boolean emptyTokens = true;
@@ -218,7 +190,7 @@ public class SearchFilterUtils {
             }
 
             // Name filters
-            BoolFilterBuilder nameFilter = boolFilter();
+            BoolQueryBuilder nameFilter = boolFilter();
             for (String tok : toks) {
                 if (!tok.isEmpty()) {
                     nameFilter.must(termFilter("commit.authorname", tok.toLowerCase()));
@@ -227,7 +199,7 @@ public class SearchFilterUtils {
             filter.should(nameFilter);
 
             // Email filters
-            BoolFilterBuilder emailFilter = boolFilter();
+            BoolQueryBuilder emailFilter = boolFilter();
             for (String tok : toks) {
                 if (!tok.isEmpty()) {
                     emailFilter.must(termFilter("commit.authoremail", tok.toLowerCase()));
@@ -239,11 +211,11 @@ public class SearchFilterUtils {
         return filterAdded ? filter.should(typeFilter("file")) : matchAllFilter();
     }
 
-    public FilterBuilder dateRangeFilter(ReadableInstant from, ReadableInstant to) {
+    public QueryBuilder dateRangeFilter(ReadableInstant from, ReadableInstant to) {
         if (from == null && to == null) {
             return matchAllFilter();
         }
-        RangeFilterBuilder dateFilter = rangeFilter("commit.commitdate");
+        RangeQueryBuilder dateFilter = rangeFilter("commit.commitdate");
         if (from != null) {
             dateFilter.gte(from.getMillis());
         }

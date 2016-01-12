@@ -173,7 +173,7 @@
         <bitbucket.version>4.0.0</bitbucket.version>
         <bitbucket.data.version>${bitbucket.version}</bitbucket.data.version>
         <bitbucket.containerId>tomcat8x</bitbucket.containerId>
-        <elasticsearch.version>1.5.2</elasticsearch.version> <!-- something changed in 1.6.0 that breaks the embedded es - unable to locate SPI's -->
+        <elasticsearch.version>2.1.1</elasticsearch.version> <!-- something changed in 1.6.0 that breaks the embedded es - unable to locate SPI's -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- This comes from the bitbucket source, last updated as of 4.0.2 -->
