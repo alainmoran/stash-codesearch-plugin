@@ -33,8 +33,8 @@ public class ElasticSearchImpl implements ElasticSearch {
     }
 
     @Override
-    public void resetClient() {
-        getEsService().resetClient();
+    public void stopClient() {
+        getEsService().stopClient();
     }
 
     @Override

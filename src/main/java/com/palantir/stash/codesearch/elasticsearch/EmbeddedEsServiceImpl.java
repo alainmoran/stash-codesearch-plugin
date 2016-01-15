@@ -50,20 +50,23 @@ public class EmbeddedEsServiceImpl implements EmbeddedEsService, DisposableBean 
     }
 
     @Override
-    public void resetClient() {
+    public void stopClient() {
         if (client!=null) {
             client.close();
             client = null;
         }
         if (node!=null) {
+            node.client().admin().cluster().prepareNodesShutdown().execute().actionGet();
+            node.stop();
             node.close();
+//            assert(node.isClosed());
             node = null;
         }
     }
 
     @Override
     public void destroy() throws Exception {
-        resetClient();
+        stopClient();
     }
 
     @Override

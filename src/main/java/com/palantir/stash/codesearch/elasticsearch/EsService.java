@@ -5,6 +5,6 @@ import org.elasticsearch.client.Client;
 
 public interface EsService {
     Client getClient();
-    void resetClient();
+    void stopClient();
     void testClient() throws ElasticsearchException;
 }

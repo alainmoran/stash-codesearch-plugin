@@ -63,7 +63,7 @@ public class RemoteEsServiceImpl implements RemoteEsService, DisposableBean {
     }
 
     @Override
-    public void resetClient() {
+    public void stopClient() {
         if (client!=null) {
             client.close();
             client = null;
@@ -72,7 +72,7 @@ public class RemoteEsServiceImpl implements RemoteEsService, DisposableBean {
 
     @Override
     public void destroy() throws Exception {
-        resetClient();
+        stopClient();
     }
 
     @Override

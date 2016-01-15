@@ -13,6 +13,6 @@ public interface ElasticSearch {
     String ES_SEARCHALIAS = "scs-search";
 
     Client getClient();
-    void resetClient();
+    void stopClient();
     void testClient() throws ElasticsearchException;
 }

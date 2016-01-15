@@ -159,7 +159,7 @@ public class GlobalSettingsServlet extends HttpServlet {
         resp.setContentType("text/html");
         try {
             ImmutableMap<String, Object> data = new ImmutableMap.Builder<String, Object>()
-                    .put("clusterName", elasticSearchSettings.getClusterName())
+                     .put("clusterName", elasticSearchSettings.getClusterName())
                     .put("hostName", elasticSearchSettings.getHostName())
                     .put("portRange", elasticSearchSettings.getPortRange())
                     .put("useEmbeddedES", elasticSearchSettings.useEmbeddedES())
@@ -278,6 +278,8 @@ public class GlobalSettingsServlet extends HttpServlet {
         // Update settings object iff no parse errors
         GlobalSettings settings;
         if (errors.isEmpty()) {
+            es.stopClient();
+
             elasticSearchSettings.setUseEmbeddedES("embedded".equals(req.getParameter("useEmbeddedES")));
             String clusterName = req.getParameter("clusterName");
             if (clusterName!=null && !clusterName.isEmpty()) {
@@ -295,7 +297,6 @@ public class GlobalSettingsServlet extends HttpServlet {
             if (indexFolder!=null && !indexFolder.isEmpty()) {
                 elasticSearchSettings.setIndexFolder(indexFolder);
             }
-            es.resetClient();
 
             settings = settingsManager.setGlobalSettings(indexingEnabled,
                 maxConcurrentIndexing, maxFileSize, searchTimeout, noHighlightExtensions,
